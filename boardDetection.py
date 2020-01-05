@@ -4,7 +4,7 @@ import imutils
 
 filename = 'board.jpg'
 img = cv2.imread(filename, 0)
-x = 500
+x = 300
 img = cv2.resize(img, (x, int(np.size(img, 0) * x / np.size(img, 1))), interpolation=cv2.INTER_AREA)
 
 # blurowanie, binaryzacja otsu
@@ -15,8 +15,9 @@ ret, th = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 # th2 = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_MEAN_C, \
 #                            cv2.THRESH_BINARY, 11, 7)
 
-# cv2.imshow('otsu', th)
-edges = cv2.Canny(blur, 0, ret)
+
+# edges = cv2.Canny(blur, 0, ret)
+edges = cv2.Canny(th, 0, ret)
 cv2.imshow('otsu', th)
 cv2.imshow('canny', edges)
 mg_dilation = cv2.dilate(edges, np.ones((5, 5,), np.uint8), iterations=1)
@@ -24,7 +25,7 @@ cv2.imshow('dilation', mg_dilation)
 
 # cnts = cv2.findContours(mg_dilation.copy(), cv2.RETR_EXTERNAL,
 #                        cv2.CHAIN_APPROX_SIMPLE)
-cnts = cv2.findContours(edges.copy(), cv2.RETR_TREE,
+cnts = cv2.findContours(mg_dilation.copy(), cv2.RETR_TREE,
                         cv2.CHAIN_APPROX_SIMPLE)
 cnts = imutils.grab_contours(cnts)
 for c in cnts:
