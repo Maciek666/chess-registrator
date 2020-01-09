@@ -2,15 +2,13 @@ import cv2
 import numpy as np
 import imutils
 
-filename = 'board.jpg'
+filename = 'chess.jpg'
 img = cv2.imread(filename, 0)
 x = 300
 img = cv2.resize(img, (x, int(np.size(img, 0) * x / np.size(img, 1))), interpolation=cv2.INTER_AREA)
 
 # blurowanie, binaryzacja otsu
-
 blur = cv2.GaussianBlur(img, (5, 5), 0)
-
 ret, th = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 cv2.imshow('otsu', th)
 
@@ -22,8 +20,6 @@ cv2.imshow('canny', edges)
 mg_dilation = cv2.dilate(edges, np.ones((5, 5,), np.uint8), iterations=1)
 cv2.imshow('mg_dilation', mg_dilation)
 
-# cnts = cv2.findContours(mg_dilation.copy(), cv2.RETR_EXTERNAL,
-#                        cv2.CHAIN_APPROX_SIMPLE)
 cnts = cv2.findContours(mg_dilation.copy(), cv2.RETR_TREE,
                         cv2.CHAIN_APPROX_SIMPLE)
 cnts = imutils.grab_contours(cnts)
@@ -35,8 +31,14 @@ for c in cnts:
     if len(approx) == 4:
         c = c.astype("float")
         c = c.astype("int")
-        cv2.drawContours(imgEdges, [c], -1, (0, 255, 0), 2)
+        # print(approx[1][0][1])
+        int
+        x = np.abs(approx[0][0][0] - approx[1][0][0])
+        y = np.abs(approx[0][0][1] - approx[1][0][1])
+        if x > .5 * np.size(img, 0) or y > .3 * np.size(img, 1):
+            cv2.drawContours(imgEdges, [approx], -1, (0, 255, 0), 2)
 
+# show detected board
 cv2.imshow('edges', imgEdges)
 
 # Probabilistic Line Transform
@@ -47,23 +49,22 @@ if linesP is not None:
     for i in range(0, len(linesP)):
         l = linesP[i][0]
         cv2.line(cdst, (l[0], l[1]), (l[2], l[3]), (0, 0, 255), 1, cv2.LINE_AA)
-
 cv2.imshow('HLP', cdst)
 
-cdst = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-lines = cv2.HoughLines(mg_dilation, 1, np.pi / 180, 50, None, 0, 0)
-for rho, theta in lines[0]:
-    a = np.cos(theta)
-    b = np.sin(theta)
-    x0 = a * rho
-    y0 = b * rho
-    x1 = int(x0 + 1000 * (-b))
-    y1 = int(y0 + 1000 * (a))
-    x2 = int(x0 - 1000 * (-b))
-    y2 = int(y0 - 1000 * (a))
+cdst2 = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+lines = cv2.HoughLines(mg_dilation, 1, np.pi / 180, 200)  # , None, 0, 0)
+for i in lines:
+    for rho, theta in i:
+        a = np.cos(theta)
+        b = np.sin(theta)
+        x0 = a * rho
+        y0 = b * rho
+        x1 = int(x0 + 1000 * (-b))
+        y1 = int(y0 + 1000 * (a))
+        x2 = int(x0 - 1000 * (-b))
+        y2 = int(y0 - 1000 * (a))
 
-    cv2.line(cdst, (x1, y1), (x2, y2), (0, 0, 255), 2)
-
+        cv2.line(cdst2, (x1, y1), (x2, y2), (0, 0, 255), 2)
 cv2.imshow('houghlines', cdst)
 
 # Detector parameters
@@ -71,7 +72,8 @@ blockSize = 2
 apertureSize = 3
 k = 0.04
 # Detecting corners
-dst = cv2.cornerHarris(th, blockSize, apertureSize, k)
+cv2.imshow('toCorner', cv2.cvtColor(cdst, cv2.COLOR_RGB2GRAY))
+dst = cv2.cornerHarris(cv2.Canny(cv2.cvtColor(cdst, cv2.COLOR_RGB2GRAY), 0, 20), blockSize, apertureSize, k)
 # Normalizing
 dst_norm = np.empty(dst.shape, dtype=np.float32)
 cv2.normalize(dst, dst_norm, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
@@ -83,7 +85,5 @@ for i in range(dst_norm.shape[0]):
             cv2.circle(dst_norm_scaled, (j, i), 5, (0), 2)
 # Showing the result
 cv2.imshow('corners_window', dst_norm_scaled)
-
 if cv2.waitKey(0) & 0xff == 27:
     cv2.destroyAllWindows()
-
