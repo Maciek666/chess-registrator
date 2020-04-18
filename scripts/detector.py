@@ -1,0 +1,79 @@
+import math
+
+import cv2
+import numpy as np
+
+
+class Detector:
+    def show_image(self, image):
+        scale_percent = 100
+
+        # calculate the 50 percent of original dimensions
+        width = int(image.shape[1] * scale_percent / 100)
+        height = int(image.shape[0] * scale_percent / 100)
+
+        # dsize
+        dsize = (width, height)
+        normalsize = cv2.resize(image, dsize)
+        cv2.imshow('imgage', normalsize)
+        if cv2.waitKey(0) & 0xff == 27:
+            cv2.destroyAllWindows()
+
+    def prepare(self, image):
+        blur = cv2.GaussianBlur(image, (7, 7), 0)
+        sharpen_kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
+        sharpen = cv2.filter2D(blur, -1, sharpen_kernel)
+        ret, th = cv2.threshold(sharpen, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        canny = cv2.Canny(blur, 0, ret)
+        kernel = np.ones((5, 5), np.uint8)
+        dilation = cv2.dilate(canny, kernel, iterations=1)
+        return dilation
+
+    def draw_squares(self, image, cnts):
+        min_area = 2000
+        max_area = math.inf
+
+        for c in cnts:
+            approx = cv2.approxPolyDP(c, 0.05 * cv2.arcLength(c, True), True)
+            area = cv2.contourArea(c)
+            # print(area)
+            # if min_area < area < max_area:
+            if 3 < len(approx) <= 4 and min_area < area < max_area:
+                print(area)
+                print(len(c))
+                # x, y, w, h = cv2.boundingRect(approx)
+                # cv2.rectangle(image, (x, y), (x + w, y + h), (252, 186, 3), 2)
+                rect = cv2.minAreaRect(c)
+                box = cv2.boxPoints(rect)
+                box = np.int0(box)
+                cv2.drawContours(image, [box], 0, (0, 0, 255), 2)
+        cv2.imshow('image', image)
+        cv2.waitKey()
+
+    def find_square(self, image):
+        blur = cv2.medianBlur(image, 5)
+        sharpen_kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
+        sharpen = cv2.filter2D(blur, -1, sharpen_kernel)
+
+        thresh = cv2.threshold(sharpen, 160, 255, cv2.THRESH_BINARY_INV)[1]
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        close = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
+
+        cnts = cv2.findContours(close, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+
+        self.draw_squares(image, cnts)
+
+    def find_square_2(self, image):
+        prepared = self.prepare(image)
+        cnts = cv2.findContours(prepared, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+        self.draw_squares(image, cnts)
+
+
+if __name__ == '__main__':
+    d = Detector()
+    image = cv2.imread('D:\Programming\python\chess-game-tracker\scripts\\board_1.jpg', 0)
+    img = d.prepare(image)
+    d.find_square_2(image)
+    # d.show_image(img)
