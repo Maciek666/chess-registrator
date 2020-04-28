@@ -1,3 +1,5 @@
+from itertools import chain
+
 import cv2
 import numpy as np
 import imutils
@@ -10,36 +12,60 @@ img = cv2.resize(img, (x, int(np.size(img, 0) * x / np.size(img, 1))), interpola
 # blurowanie, binaryzacja otsu
 blur = cv2.GaussianBlur(img, (5, 5), 0)
 ret, th = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-cv2.imshow('otsu', th)
+# cv2.imshow('otsu', th)
 
 # th2 = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_MEAN_C, \
 #                            cv2.THRESH_BINARY, 11, 7)
 
 edges = cv2.Canny(blur, 0, ret)
-cv2.imshow('canny', edges)
+# cv2.imshow('canny', edges)
 mg_dilation = cv2.dilate(edges, np.ones((5, 5,), np.uint8), iterations=1)
-cv2.imshow('mg_dilation', mg_dilation)
+# cv2.imshow('mg_dilation', mg_dilation)
 
 cnts = cv2.findContours(mg_dilation.copy(), cv2.RETR_TREE,
                         cv2.CHAIN_APPROX_SIMPLE)
 cnts = imutils.grab_contours(cnts)
 imgEdges = cv2.cvtColor(edges, cv2.COLOR_RGB2BGR)
 
+
+def leng(a, b):
+    print(a[0][0])
+    print(b[0][0])
+    x = np.square(np.abs(a[0] - b[0]))
+    int(x)
+
+
+def isAprroximateSqare(a):
+    t1 = leng(a[0][0], a[1][0])
+    t2 = leng(a[0][0], a[2][0])
+    print(t1)
+    bok = np.minimum(t1, t2)
+    d = np.maximum(leng(a[0][0], a[1][0]), leng(a[0][0], a[2][0]))
+
+    if np.sqrt(2) * bok - d < 0.2:
+        return True
+    else:
+        return False
+
+
+i = 0
 for c in cnts:
     peri = cv2.arcLength(c, True)
     approx = cv2.approxPolyDP(c, 0.04 * peri, True)
     if len(approx) == 4:
+
+        # isAprroximateSqare(approx)
         c = c.astype("float")
         c = c.astype("int")
-        # print(approx[1][0][1])
-        int
         x = np.abs(approx[0][0][0] - approx[1][0][0])
         y = np.abs(approx[0][0][1] - approx[1][0][1])
         if x > .5 * np.size(img, 0) or y > .3 * np.size(img, 1):
             cv2.drawContours(imgEdges, [approx], -1, (0, 255, 0), 2)
+        if .5 * np.size(img, 0) > x > .05 * np.size(img, 0) or .4 * np.size(img, 1) > y > .03 * np.size(img, 1):
+            cv2.drawContours(imgEdges, [approx], -1, (30, 0, 255), 2)
 
 # show detected board
-cv2.imshow('edges', imgEdges)
+cv2.imshow('board', imgEdges)
 
 # Probabilistic Line Transform
 linesP = cv2.HoughLinesP(mg_dilation, 1, np.pi / 180, 150, None, 20, 10)
@@ -84,6 +110,13 @@ for i in range(dst_norm.shape[0]):
         if 80 > int(dst_norm[i, j]) > 50:
             cv2.circle(dst_norm_scaled, (j, i), 5, (0), 2)
 # Showing the result
+
+kernel = np.ones((7, 7), np.float32) / 49
+kernel2 = np.ones((3, 3), np.float32) / 9
+dst2 = cv2.filter2D(img, -1, kernel2)
+dst = cv2.filter2D(img, -1, kernel)
+cv2.imshow('filtracja 7x7', dst)
+cv2.imshow('filtracja 3x3', dst2)
 cv2.imshow('corners_window', dst_norm_scaled)
 if cv2.waitKey(0) & 0xff == 27:
     cv2.destroyAllWindows()
