@@ -2,6 +2,7 @@ import math
 
 import cv2
 import numpy as np
+import random
 
 
 class Detector():
@@ -38,8 +39,8 @@ class Detector():
             box = cv2.boxPoints(c)
             box = np.int0(box)
             cv2.drawContours(image, [box], 0, (0, 0, 255), 2)
+
         cv2.imshow('image', image)
-        cv2.waitKey()
 
     def _draw_squares(self, image, cnts):
         min_area = 4500
@@ -66,8 +67,9 @@ class Detector():
         :returns:  squares with area with simialr to chess field, and chessboard - suspected squares
                     hierarchy - just hierarchy of squares, squares[i] is correlated with hierarchy[i], i(-1, inf+)
         """
-        prepared = self.prepare(image)
-        cnts, hier = cv2.findContours(prepared, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
+        # prepared = self.prepare(image)
+        # cv2.imshow('prepared', prepared)
+        cnts, hier = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
         # print(hier)
         # cnts = cnts[0] if len(cnts) == 2 else cnts[1]
         min_area = 4500
@@ -204,25 +206,86 @@ class Detector():
             pass
         else:
             prev = -dist
-            tmp = None
+
             for i in range(len(lines)):
                 tmp = None
                 if lines[i][0][key] - prev > dist * 1.8:
-                    print('ubytek')
+
                     if key == 0:
                         tmp = [(lines[i][0][0] - dist, lines[i][0][1]), (lines[i][1][0] - dist, lines[i][1][1])]
                     elif key == 1:
-                        tmp = [(lines[i][0][0], lines[i][0][1] - dist), (lines[i][1][0], lines[i][1][1]) - dist]
+                        tmp = [(lines[i][0][0], lines[i][0][1] - dist), (lines[i][1][0], lines[i][1][1] - dist)]
                     lines.append(tmp)
                 prev = lines[i][0][key]
+
+    def _find_corners_in_PIby2_1px_lines(self, line_image):
+        """"
+        a lot slower than goodFeatureToTrack() by opencv
+        """
+        corners = []
+        gray = np.min(line_image)
+        # print(gray)
+        for i in range(1, len(line_image) - 1):
+            for j in range(1, len(line_image[i]) - 1):
+                # print(line_image[i - 1][j])
+                if line_image[i - 1][j] == line_image[i + 1][j] == line_image[i][j + 1] == line_image[i][j - 1] == gray:
+                    corners.append([i, j])
+
+        return corners
+
+    def _do_corners_2D(self, corners):
+        pass
+
+    def _corners_logic(self, line_image):
+        h8, width = line_image.shape[0], line_image.shape[1]
+        white = np.zeros((h8, width, 3), np.uint8) + 255
+        # white = cv2.cvtColor(line_image,cv2.COLOR_GRAY2BGR)
+        corners = cv2.goodFeaturesToTrack(line_image, 0, 0.01, 10)
+        corners: list = np.int0(corners)
+        # corners = self._find_corners_in_PIby2_1px_lines(line_image)
+
+        cr = []
+        for i in corners:
+            x, y = i.ravel()
+            cr.append({x, y})
+            # x, y = i
+            # print(str(x) + '  ' + str(y))
+            cv2.circle(white, (x, y), 3, 255, -1)
+
+        corners = np.reshape(corners, (-1, 18))
+
+        rects = []
+        for i in range(len(corners) - 1):
+            for j in range(0, len(corners[i]) - 2, 2):
+                x1, y1 = corners[i][j], corners[i][j + 1]
+                x2, y2 = corners[i + 1][j + 2], corners[i + 1][j + 3]
+                rects.append([(x1, y1), (x2, y2)])
+
+        for rect in rects:
+            cv2.rectangle(white, rect[0], rect[1],
+                          [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)], thickness=-1)
+
+        # cv2.imshow('cor', white)
+        return rects
+
+    def _show_fields(self, rects, cropped_image):
+        cropped_image = cv2.cvtColor(cropped_image, cv2.COLOR_GRAY2BGR)
+        tr = cropped_image.copy()
+
+        for rect in rects:
+            cv2.rectangle(tr, rect[0], rect[1],
+                          [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)], thickness=-1)
+        opacity = 0.4
+        cv2.addWeighted(tr, opacity, cropped_image, 1 - opacity, 0, cropped_image)
+        cv2.imshow('fields', cropped_image)
 
     def find_fields(self, board_image):
         clache = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         cl_board = clache.apply(board_image)
         image = self.prepare(cl_board)
         h8, width = board_image.shape[0], board_image.shape[1]
-        # cdst = np.zeros((h8, width, 3), np.uint8) + 250
-        cdst = cv2.cvtColor(board_image, cv2.COLOR_GRAY2BGR)
+        cdst = np.zeros((h8, width, 3), np.uint8) + 250
+        # cdst = cv2.cvtColor(board_image, cv2.COLOR_GRAY2BGR)
         detected_lines = self._prepare_lines(image)
         poziome, pionowe = self._group_line(detected_lines)
 
@@ -231,30 +294,27 @@ class Detector():
         self._lines_reconstruction(pionowe, dist_pion, 0)
         self._lines_reconstruction(poziome, dist_poz, 1)
         for line in pionowe:
-            cv2.line(cdst, line[0], line[1], (255, 0, 0), 2)
+            cv2.line(cdst, line[0], line[1], (255, 0, 0), 1)
         for line in poziome:
-            cv2.line(cdst, line[0], line[1], (255, 0, 0), 2)
+            cv2.line(cdst, line[0], line[1], (255, 0, 0), 1)
 
-        print(pionowe)
         cv2.imshow('line', cdst)
-        return image
+        return cdst
 
 
 if __name__ == '__main__':
     d = Detector()
-    image = cv2.imread('D:\Programming\python\chess-registrator\photos\hard.jpg', 0)
-    cv2.imshow('oryginal', image)
-    img = d.prepare(image)
-    sq, h = d.find_square(image)
-    # print(*h)
-    # cv2.drawContours(image, sq, 14, (127, 127, 0), 2)
-    # cv2.imshow('im', image)
-    # cv2.waitKey()
+    image_ = cv2.imread('D:\Programming\python\chess-registrator\photos\ze_stojaka_3.jpg', 0)
+    cv2.imshow('oryginal', image_)
+    img = d.prepare(image_)
+    sq, h = d.find_square(img)
     board = d.find_board(sq)
-    print(board)
-    cropped = d.crop_board(image, board)
+    cropped = d.crop_board(image_, board)
+    cv2.imshow('cropped', cropped)
     cropped_ff = d.find_fields(cropped)
-    sqaures, _ = d.find_square(cropped)
+    cropped_ff = cv2.cvtColor(cropped_ff, cv2.COLOR_BGR2GRAY)
+    fields = d._corners_logic(cropped_ff)
+    d._show_fields(fields,cropped)
+    # d.draw_contours_and_show(white, fields)
 
-    d.draw_contours_and_show(cropped, sqaures)
-    # d.draw_contours_and_show(image, sq)
+    cv2.waitKey()
