@@ -346,11 +346,11 @@ class Detector():
     def _find_H1_field(self, fields, clache_board_image):
         max_value = -1
         h1_cor = None
-        print(clache_board_image)
+
         cv2.imshow('cl', clache_board_image)
         for i, j in zip([0, 0, 7, 7], [0, 7, 0, 7]):
             corner = fields[i][j]
-            print(corner[1][1], corner[0][1], corner[1][0], corner[0][0])
+
             cr = clache_board_image[corner[1][1]:corner[0][1], corner[1][0]:corner[0][0]]
             # cr = clache_board_image[10:88, 9:86]
             blur = cv2.GaussianBlur(cr, (5, 5), 0)
@@ -377,7 +377,7 @@ class Detector():
         #         signature = '' + str(letters[l]) + str(nums[n])
         #         fields[n][l].append(signature)
         x = 7
-        print(i, j)
+
         for line in fields:
             y = 7
             for field in line:
