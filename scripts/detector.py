@@ -1,12 +1,10 @@
-import math
-
 import cv2
 import numpy as np
 import random
 
 
 class Detector():
-    def show_image(self, image):
+    def _show_image(self, image):
         scale_percent = 100
 
         # calculate the 50 percent of original dimensions
@@ -20,7 +18,7 @@ class Detector():
         if cv2.waitKey(0) & 0xff == 27:
             cv2.destroyAllWindows()
 
-    def prepare(self, image):
+    def _prepare(self, image):
 
         blur = cv2.GaussianBlur(image, (5, 5), 0)
         # sharpen_kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
@@ -34,7 +32,7 @@ class Detector():
         # cv2.waitKey()
         return dilation
 
-    def draw_contours_and_show(self, image, cnts):
+    def _draw_contours_and_show(self, image, cnts):
         for c in cnts:
             box = cv2.boxPoints(c)
             box = np.int0(box)
@@ -62,12 +60,12 @@ class Detector():
         cv2.imshow('image', image)
         cv2.waitKey()
 
-    def find_square(self, image):
+    def _find_square(self, image):
         """"
         :returns:  squares with area with simialr to chess field, and chessboard - suspected squares
                     hierarchy - just hierarchy of squares, squares[i] is correlated with hierarchy[i], i(-1, inf+)
         """
-        # prepared = self.prepare(image)
+        # prepared = self._prepare(image)
         # cv2.imshow('prepared', prepared)
         cnts, hier = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
         # print(hier)
@@ -81,32 +79,31 @@ class Detector():
             rect = cv2.minAreaRect(c)
             # area = cv2.contourArea(c)
             area = rect[1][0] * rect[1][1]
-            if 3 < len(approx) <= 4 and (min_area < area < max_area or area > 64 * min_area):
+            if 3 < len(approx) <= 5 and (min_area < area < max_area or area > 64 * min_area):
                 rect = cv2.minAreaRect(c)
                 squares.append(rect)
                 hierarchy.append(h)
 
         return squares, hierarchy
 
-    def find_board(self, squares):
+    def _find_board(self, squares):
         if len(squares) > 0:
             return max(squares, key=lambda x: x[1][0])
         else:
             return None
 
-    def crop_board(self, image, board):
+    def _crop_board(self, image, board):
         cropped = None
         if board == None:
             pass
         else:
-            center, size, angle = board[0], board[1], board[2] % 90
+            center, size, angle = board[0], board[1], board[2] % 90 - 90
             center, size = tuple(map(int, center)), tuple(map(int, size))
-            height, width = img.shape[0], img.shape[1]
+            height, width = image.shape[0], image.shape[1]
             rot_matrix = cv2.getRotationMatrix2D(center, angle, 1)
             rotated = cv2.warpAffine(image, rot_matrix, (width, height))
             cropped = cv2.getRectSubPix(rotated, size, center)
-            # cv2.imshow('rot', cropped)
-            # cv2.waitKey()
+
         return cropped
 
     def _prepare_lines(self, preapred_image):
@@ -168,7 +165,7 @@ class Detector():
         nearest_to_middle, dist = self._find_pivot_and_dist(pionowe, width, 0)
 
         for i in range(len(pionowe) - 1):
-            if dist * 1.2 > abs(pionowe[i][0][0] - pionowe[i + 1][0][0]) > dist * .8:
+            if dist * 1.4 > abs(pionowe[i][0][0] - pionowe[i + 1][0][0]) > dist * .8:
                 # cv2.line(cdst, pionowe[i][0], pionowe[i][1], (0, 0, 255), 1)
                 pass
             else:
@@ -179,20 +176,57 @@ class Detector():
 
     def _filter_horizontal_lines(self, poziome, height):
         nearest_to_middle, dist = self._find_pivot_and_dist(poziome, height, 1)
-        counter: int = 0
+        # counter: int = 0
         for i in range(len(poziome) - 1):
-            if counter == 9:
-                poziome[i] = None
-                break
-            elif dist * 1.2 > abs(poziome[i][0][1] - poziome[i + 1][0][1]) > dist * .8:
+            # if counter == 9:
+            #     poziome[i] = None
+            #     break
+            if dist * 1.4 > abs(poziome[i][0][1] - poziome[i + 1][0][1]) > dist * .8:
                 # cv2.line(cdst, pionowe[i][0], pionowe[i][1], (0, 0, 255), 1)
-                counter += 1
+                # counter += 1
+
                 pass
             else:
                 poziome[i] = None
 
         poziome = list(filter(lambda x: x is not None, poziome))
         return poziome, dist
+
+    def _vertical_lines_reconstruction(self, lines: list, dist, board_img_width):
+        while len(lines) < 9:
+            lines.sort(key=lambda x: x[0][0])
+            tmp_len = len(lines)
+            for i in range(tmp_len):
+                # lower bound
+                if lines[i][0][0] > dist and abs(lines[i][0][0] - lines[i - 1][0][0]) > 1.4 * dist:
+                    tmp = [(lines[i][0][0] - dist, lines[i][0][1]), (lines[i][1][0] - dist, lines[i][1][1])]
+                    lines.append(tmp)
+                # upper bound
+                if board_img_width - lines[i][0][0] > dist:
+                    tmp = None
+                    if i == tmp_len - 1:
+                        tmp = [(lines[i][0][0] + dist, lines[i][0][1]), (lines[i][1][0] + dist, lines[i][1][1])]
+                    elif lines[i + 1][0][0] - lines[i][0][0] > 1.4 * dist:
+                        tmp = [(lines[i][0][0] + dist, lines[i][0][1]), (lines[i][1][0] + dist, lines[i][1][1])]
+                    if tmp is not None:
+                        lines.append(tmp)
+
+    def _horizontal_lines_reconstruction(self, lines: list, dist, board_img_height):
+        while len(lines) < 9:
+            lines.sort(key=lambda x: x[0][1])
+            tmp_len = len(lines)
+            for i in range(tmp_len):
+                if lines[i][0][1] > dist and abs(lines[i][0][1] - lines[i - 1][0][1]) > 1.4 * dist:
+                    tmp = [(lines[i][0][0], lines[i][0][1] - dist), (lines[i][1][0], lines[i][1][1] - dist)]
+                    lines.append(tmp)
+                if board_img_height - lines[i][0][1] > dist:
+                    tmp = None
+                    if i == tmp_len - 1:
+                        tmp = [(lines[i][0][0], lines[i][0][1] + dist), (lines[i][1][0], lines[i][1][1] + dist)]
+                    elif lines[i + 1][0][1] - lines[i][0][1] > 1.4 * dist:
+                        tmp = [(lines[i][0][0], lines[i][0][1] + dist), (lines[i][1][0], lines[i][1][1] + dist)]
+                    if tmp is not None:
+                        lines.append(tmp)
 
     def _lines_reconstruction(self, lines: [], dist, key):
         """"
@@ -205,12 +239,12 @@ class Detector():
         if len(lines) == 9:
             pass
         else:
-            prev = -dist
 
+            # while len(lines) <= 8:
+            prev = -dist
             for i in range(len(lines)):
                 tmp = None
-                if lines[i][0][key] - prev > dist * 1.8:
-
+                if lines[i][0][key] - prev > dist * 1.4:
                     if key == 0:
                         tmp = [(lines[i][0][0] - dist, lines[i][0][1]), (lines[i][1][0] - dist, lines[i][1][1])]
                     elif key == 1:
@@ -233,9 +267,6 @@ class Detector():
 
         return corners
 
-    def _do_corners_2D(self, corners):
-        pass
-
     def _corners_logic(self, line_image):
         h8, width = line_image.shape[0], line_image.shape[1]
         white = np.zeros((h8, width, 3), np.uint8) + 255
@@ -243,27 +274,22 @@ class Detector():
         corners = cv2.goodFeaturesToTrack(line_image, 0, 0.01, 10)
         corners: list = np.int0(corners)
         # corners = self._find_corners_in_PIby2_1px_lines(line_image)
-
-        cr = []
-        for i in corners:
-            x, y = i.ravel()
-            cr.append({x, y})
-            # x, y = i
-            # print(str(x) + '  ' + str(y))
-            cv2.circle(white, (x, y), 3, 255, -1)
-
+        # sort with tolerance
+        corners = sorted(corners, key=lambda x: (-x[0][0] // 4, -x[0][1] // 4))
         corners = np.reshape(corners, (-1, 18))
 
         rects = []
         for i in range(len(corners) - 1):
+            line = []
             for j in range(0, len(corners[i]) - 2, 2):
                 x1, y1 = corners[i][j], corners[i][j + 1]
                 x2, y2 = corners[i + 1][j + 2], corners[i + 1][j + 3]
-                rects.append([(x1, y1), (x2, y2)])
-
-        for rect in rects:
-            cv2.rectangle(white, rect[0], rect[1],
-                          [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)], thickness=-1)
+                line.append([(x1, y1), (x2, y2)])
+            rects.append(line)
+        for line in rects:
+            for rect in line:
+                cv2.rectangle(white, rect[0], rect[1],
+                              [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)], thickness=-1)
 
         # cv2.imshow('cor', white)
         return rects
@@ -272,17 +298,27 @@ class Detector():
         cropped_image = cv2.cvtColor(cropped_image, cv2.COLOR_GRAY2BGR)
         tr = cropped_image.copy()
 
-        for rect in rects:
-            cv2.rectangle(tr, rect[0], rect[1],
-                          [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)], thickness=-1)
+        for line in rects:
+            for rect in line:
+                cv2.rectangle(tr, rect[0], rect[1],
+                              [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)], thickness=-1)
+        # cor = rects[0][0]
+        # print(cor)
+        # cv2.rectangle(tr, cor[0], cor[1],
+        #               [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)], thickness=-1)
         opacity = 0.4
         cv2.addWeighted(tr, opacity, cropped_image, 1 - opacity, 0, cropped_image)
+        for line in rects:
+            for rect in line:
+                org = (rect[1][1], rect[1][0] + 50)
+                cv2.putText(cropped_image, rect[2], org, cv2.FONT_ITALIC, 1, [0, 0, 255], 2)
+
         cv2.imshow('fields', cropped_image)
 
-    def find_fields(self, board_image):
+    def _lines_logic(self, board_image):
         clache = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         cl_board = clache.apply(board_image)
-        image = self.prepare(cl_board)
+        image = self._prepare(cl_board)
         h8, width = board_image.shape[0], board_image.shape[1]
         cdst = np.zeros((h8, width, 3), np.uint8) + 250
         # cdst = cv2.cvtColor(board_image, cv2.COLOR_GRAY2BGR)
@@ -291,8 +327,14 @@ class Detector():
 
         pionowe, dist_pion = self._filter_vertical_lines(pionowe, width)
         poziome, dist_poz = self._filter_horizontal_lines(poziome, h8)
-        self._lines_reconstruction(pionowe, dist_pion, 0)
-        self._lines_reconstruction(poziome, dist_poz, 1)
+
+        pionowe.sort(key=lambda x: x[0][0])
+        poziome.sort(key=lambda x: x[0][1])
+        # self._lines_reconstruction(pionowe, dist_pion, 0)
+        # self._lines_reconstruction(poziome, dist_poz, 1)
+        self._horizontal_lines_reconstruction(poziome, dist_poz, h8)
+        self._vertical_lines_reconstruction(pionowe, dist_pion, width)
+
         for line in pionowe:
             cv2.line(cdst, line[0], line[1], (255, 0, 0), 1)
         for line in poziome:
@@ -301,20 +343,88 @@ class Detector():
         cv2.imshow('line', cdst)
         return cdst
 
+    def _find_H1_field(self, fields, clache_board_image):
+        max_value = -1
+        h1_cor = None
+        print(clache_board_image)
+        cv2.imshow('cl', clache_board_image)
+        for i, j in zip([0, 0, 7, 7], [0, 7, 0, 7]):
+            corner = fields[i][j]
+            print(corner[1][1], corner[0][1], corner[1][0], corner[0][0])
+            cr = clache_board_image[corner[1][1]:corner[0][1], corner[1][0]:corner[0][0]]
+            # cr = clache_board_image[10:88, 9:86]
+            blur = cv2.GaussianBlur(cr, (5, 5), 0)
+            mean = np.mean(blur)
+            if mean > max_value:
+                h1_cor = (i, j)
+                max_value = mean
+        return h1_cor
+
+    def _name_fields(self, fields, i, j):
+        nums = [1, 2, 3, 4, 5, 6, 7, 8]
+
+        letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+        first = None
+        second = None
+
+        if i == 0:
+            letters = letters[::-1]
+        if j == 7:
+            nums = nums[::-1]
+
+        # for n in range(len(nums)):
+        #     for l in range(len(letters) - 1, -1, -1):
+        #         signature = '' + str(letters[l]) + str(nums[n])
+        #         fields[n][l].append(signature)
+        x = 7
+        print(i, j)
+        for line in fields:
+            y = 7
+            for field in line:
+                if i == j:
+                    signature = '' + str(letters[y]) + str(nums[x])
+                else:
+                    signature = '' + str(letters[x]) + str(nums[y])
+                field.append(signature)
+                y -= 1
+            x -= 1
+        return fields
+
+    def _fields_logic(self, fields, board_image):
+        clache = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        cl_board = clache.apply(board_image)
+        i, j = self._find_H1_field(fields, cl_board)
+
+        h1_img = fields[i][j]
+        h1_img = cl_board[h1_img[1][1]:h1_img[0][1], h1_img[1][0]:h1_img[0][0]]
+        named_fields = self._name_fields(fields, i, j)
+        cv2.imshow('field', h1_img)
+        return named_fields
+
+    def get_board(self, frame):
+        prepare = self._prepare(frame)
+        squares, _ = self._find_square(prepare)
+        board = self._find_board(squares)
+        cropp_to_board = self._crop_board(frame, board)
+        return cropp_to_board
+
+    def get_fields(self, board_image):
+        chessboard_lines_img = self._lines_logic(board_image)
+        chessboard_lines_img = cv2.cvtColor(chessboard_lines_img, cv2.COLOR_BGR2GRAY)
+        fields = self._corners_logic(chessboard_lines_img)
+        fields = self._fields_logic(fields, board_image)
+        return fields
+
 
 if __name__ == '__main__':
     d = Detector()
-    image_ = cv2.imread('D:\Programming\python\chess-registrator\photos\ze_stojaka_3.jpg', 0)
+    image_ = cv2.imread('D:\Programming\python\chess-registrator\photos\ze_stojaka_4.jpg', 0)
+    # image_ = cv2.rotate(image_, cv2.ROTATE_90_CLOCKWISE)
     cv2.imshow('oryginal', image_)
-    img = d.prepare(image_)
-    sq, h = d.find_square(img)
-    board = d.find_board(sq)
-    cropped = d.crop_board(image_, board)
-    cv2.imshow('cropped', cropped)
-    cropped_ff = d.find_fields(cropped)
-    cropped_ff = cv2.cvtColor(cropped_ff, cv2.COLOR_BGR2GRAY)
-    fields = d._corners_logic(cropped_ff)
-    d._show_fields(fields,cropped)
-    # d.draw_contours_and_show(white, fields)
+    cropped = d.get_board(image_)
+    cv2.imshow('crpped', cropped)
 
+    fields = d.get_fields(cropped)
+
+    d._show_fields(fields, cropped)
     cv2.waitKey()
