@@ -8,7 +8,7 @@ from scripts.detector import Detector
 
 class TestDetector(TestCase):
     def test_fields(self):
-        path = 'D:\Programming\python\chess-registrator\photos\ze_stojaka_4.jpg'
+        path = 'D:\Programming\python\chess-registrator\photos\moves\move_0_ses1.jpg'
         image_ = cv2.imread(path, 0)
         detector = Detector()
         cropped = detector.get_board(image_)
@@ -17,14 +17,16 @@ class TestDetector(TestCase):
         for rzad in fields:
             self.assertEqual(len(rzad), 8, 'nie poprawna ilosc pol w rzedzie')
 
+
+
     def test_lines(self):
-        path = 'D:\Programming\python\chess-registrator\photos\ze_stojaka_4.jpg'
+        path = 'D:\Programming\python\chess-registrator\photos\moves\move_2_ses1.jpg'
         image_ = cv2.imread(path, 0)
         detector = Detector()
         board_image = detector.get_board(image_)
         clache = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         cl_board = clache.apply(board_image)
-        image = detector._prepare(cl_board)
+        image = detector.prepare(cl_board)
         h8, width = board_image.shape[0], board_image.shape[1]
         cdst = np.zeros((h8, width, 3), np.uint8) + 250
         # cdst = cv2.cvtColor(board_image, cv2.COLOR_GRAY2BGR)
