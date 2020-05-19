@@ -11,3 +11,5 @@ wciska spacje w celu przeniesienia upływu czasu na przeciwnika,
 wtedy zostaje wyświetlony ruch.
 3. Gra kończy się przez kliknięcie guzika wygrana białych/czarnych lub remis.
 Zostaje wysiewtlony zapis partii z możliwościami przeniesienia zapisu.
+#Kamień milowy
+![](https://github.com/maciejGolebio/chess-registrator/blob/master/photos/milestone.JPG)
