@@ -374,7 +374,7 @@ class Detector():
                 max_value = variance
                 a8_pic = cr
 
-        cv2.imshow('a8', a8_pic)
+        # cv2.imshow('a8', a8_pic)
         return a8_cor
 
     def _name_fields(self, fields, i, j):
@@ -439,7 +439,7 @@ class Detector():
 
 if __name__ == '__main__':
     d = Detector()
-    image_ = cv2.imread('D:\Programming\python\chess-registrator\photos\moves\move_1.jpg', 0)
+    image_ = cv2.imread('D:\Programming\python\chess-registrator\photos\moves\move_1_ses1.jpg', 0)
     # image_ = cv2.rotate(image_, cv2.ROTATE_90_CLOCKWISE)
     cv2.imshow('oryginal', image_)
     cropped = d.get_board(image_)
