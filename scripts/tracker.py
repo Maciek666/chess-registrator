@@ -1,3 +1,4 @@
+import chess
 import cv2
 import numpy as np
 
@@ -11,6 +12,7 @@ class Tracker:
         :param fields: list of triplets, first corner coordinates, second corner coordinates, field name
             cordiantes(y,x)
         """
+        self.board = chess.Board()
         self.fields = fields
 
     def compare(self, board_image_1, board_image_2):
@@ -18,16 +20,17 @@ class Tracker:
         board_image_1 = cv2.blur(board_image_1, (5, 5))
         cv2.imshow('before', board_image_1)
         cv2.imshow('after', board_image_2)
+        # print(board_image_1.shape, board_image_2.shape)
         xor = cv2.bitwise_xor(board_image_1, board_image_2)
         # xor = cv2.medianBlur(xor, 5)
 
         kernel = np.ones((3, 3), np.uint8)
-        erosion = cv2.erode(xor, kernel, iterations=2)
+        erosion = cv2.erode(xor, kernel, iterations=4)
         _, erosion = cv2.threshold(erosion, 180, 255, cv2.THRESH_BINARY)
         # dilation = cv2.dilate(erosion, kernel, iterations=1)
-        th = 120
+        # th = 120
         cnts, _ = cv2.findContours(erosion, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
-        h8, width = board_image_1.shape[0], board_image_1.shape[1]
+        # h8, width = board_image_1.shape[0], board_image_1.shape[1]
         # white = np.zeros((h8, width, 3), np.uint8) + 250
         points = []
         for c in cnts:
@@ -51,13 +54,18 @@ class Tracker:
                 fields: [y, x]
         :return:
         """
+        move = []
         for line in self.fields:
             for field in line:
                 a = field[1]
                 b = field[0]
                 for c in centers:
-                    if a[1] <= c[0] <= b[1] and a[0] <= c[1] <=b[0]:
+                    if a[1] <= c[0] <= b[1] and a[0] <= c[1] <= b[0]:
                         print(field[2])
+                        move.append(field[2].lower())
+        if len(move) != 2:
+            raise Exception('crush')
+        return move
 
     def cropp_and_rotate_like_first_scene(self, detector: Detector, image):
         height, width = image.shape[0], image.shape[1]
