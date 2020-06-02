@@ -13,3 +13,5 @@ wtedy zostaje wyświetlony ruch.
 Zostaje wysiewtlony zapis partii z możliwościami przeniesienia zapisu.
 # Kamień milowy
 ![](https://github.com/maciejGolebio/chess-registrator/blob/master/photos/milestone.JPG)
+# Chess api
+![](https://github.com/maciejGolebio/chess-registrator/blob/master/chess_api.png)
