@@ -51,7 +51,8 @@ while True:
                 prev = current
 
             print(tracker.board)
-            cv2.imshow('cropped', prev)
+            print(tracker.board.fen())
+            # cv2.imshow('cropped', prev)
             cv2.waitKey()
             #  fields = detector.  get_fields(cropped)
         except Exception as e:
