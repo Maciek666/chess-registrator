@@ -426,6 +426,8 @@ class Detector():
         squares, _ = self._find_square(prepare)
         board = self._find_board(squares)
         cropp_to_board = self._crop_board(frame, board)
+        cv2.imshow('prepared',prepare)
+
         return cropp_to_board
 
     def get_fields(self, board_image):
@@ -434,6 +436,7 @@ class Detector():
         :param board_image:
         """
         chessboard_lines_img = self._lines_logic(board_image)
+        cv2.imshow('lines', chessboard_lines_img)
         chessboard_lines_img = cv2.cvtColor(chessboard_lines_img, cv2.COLOR_BGR2GRAY)
         fields = self._corners_logic(chessboard_lines_img)
         fields = self._fields_logic(fields, board_image)
@@ -442,9 +445,10 @@ class Detector():
 
 if __name__ == '__main__':
     d = Detector()
-    image_ = cv2.imread('D:\Programming\python\chess-registrator\opencv_frame.jpg', 0)
+    image_ = cv2.imread('D:\Programming\python\chess-registrator\\photos\\moves\\move_0.jpg', 0)
     cv2.imshow('oryginal', image_)
     cropped = d.get_board(image_)
     cv2.imshow('crpped', cropped)
     fields = d.get_fields(cropped)
+    d._show_fields(fields,cropped)
     cv2.waitKey()

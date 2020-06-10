@@ -27,13 +27,9 @@ while True:
         break
     elif k % 256 == 32:
         # SPACE pressed
-        # img_name = "opencv_frame.jpg"
-        # cv2.imwrite(img_name, frame)
-        # print(f'written {img_name}')
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         try:
             if fields is None:
-
                 prev = detector.get_board(frame)
                 fields = detector.get_fields(prev)
                 tracker = Tracker(fields)
@@ -52,9 +48,7 @@ while True:
 
             print(tracker.board)
             print(tracker.board.fen())
-            # cv2.imshow('cropped', prev)
             cv2.waitKey()
-            #  fields = detector.  get_fields(cropped)
         except Exception as e:
             print(e)
             print('sprobuj jeszcze raz')
